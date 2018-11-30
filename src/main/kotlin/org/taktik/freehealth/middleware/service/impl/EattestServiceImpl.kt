@@ -165,6 +165,9 @@ class EattestServiceImpl(private val stsService: STSService) : EattestService {
         hcpCbe: String,
         passPhrase: String,
         patientSsin: String,
+        patientFirstName:String,
+        patientLastName:String,
+        patientGender:String,
         referenceDate: Int?,
         attest: Eattest): SendAttestResultWithResponse? {
         val samlToken =
@@ -250,12 +253,12 @@ class EattestServiceImpl(private val stsService: STSService) : EattestService {
                                 s = IDPATIENTschemes.ID_PATIENT; sv = "1.0"; value =
                                 patientSsin
                             })
-                            firstnames.add("")
-                            familyname = ""
+                            firstnames.add(patientFirstName)
+                            familyname = patientLastName
                             sex =
                                 SexType().apply {
                                     cd =
-                                        CDSEX().apply { s = "CD-SEX"; sv = "1.1"; value = CDSEXvalues.UNKNOWN }
+                                        CDSEX().apply { s = "CD-SEX"; sv = "1.1"; value = try { CDSEXvalues.fromValue(patientGender) } catch(e:Exception) {CDSEXvalues.UNKNOWN}}
                                 }
                         }
                         transactions.addAll(listOf(TransactionType().apply {
@@ -610,7 +613,6 @@ class EattestServiceImpl(private val stsService: STSService) : EattestService {
             val requestXml = kmehrMarshallHelper.toXMLByteArray(sendTransactionRequest)
             val requestXmlString = String(requestXml)
 
-
             val sendAttestationRequest = SendAttestationRequest().apply {
                 val encryptedKnownContent = EncryptedKnownContent()
                 encryptedKnownContent.replyToEtk = it.encoded
@@ -678,7 +680,6 @@ class EattestServiceImpl(private val stsService: STSService) : EattestService {
             }
 
             val sendAttestationResponse = freehealthEattestService.sendAttestion(samlToken, sendAttestationRequest)
-
             val blobType = sendAttestationResponse.`return`.detail
             val blob = BlobMapper.mapBlobfromBlobType(blobType)
             val unsealedData =
@@ -725,7 +726,7 @@ class EattestServiceImpl(private val stsService: STSService) : EattestService {
                     xades = xades,
                     commonOutput = CommonOutput(commonOutput?.inputReference, commonOutput?.nipReference, commonOutput?.outputReference),
                     mycarenetConversation = MycarenetConversation().apply {
-                        this.transactionResponse = MarshallerHelper(SendAttestationResponse::class.java, SendAttestationResponse::class.java).toXMLByteArray(sendAttestationResponse).toString(Charsets.UTF_8)
+                        this.transactionResponse = MarshallerHelper(SendTransactionResponse::class.java, SendTransactionResponse::class.java).toXMLByteArray(decryptedAndVerifiedResponse.sendTransactionResponse).toString(Charsets.UTF_8)
                         this.transactionRequest = MarshallerHelper(SendTransactionRequest::class.java, SendTransactionRequest::class.java).toXMLByteArray(sendTransactionRequest).toString(Charsets.UTF_8)
                         sendAttestationResponse?.soapResponse?.writeTo(this.soapResponseOutputStream())
                         sendAttestationResponse?.soapRequest?.writeTo(this.soapRequestOutputStream())
@@ -739,7 +740,7 @@ class EattestServiceImpl(private val stsService: STSService) : EattestService {
                                                     ),
                 xades = xades,
                 mycarenetConversation = MycarenetConversation().apply {
-                    this.transactionResponse = MarshallerHelper(SendAttestationResponse::class.java, SendAttestationResponse::class.java).toXMLByteArray(sendAttestationResponse).toString(Charsets.UTF_8)
+                    this.transactionResponse = MarshallerHelper(SendTransactionResponse::class.java, SendTransactionResponse::class.java).toXMLByteArray(decryptedAndVerifiedResponse.sendTransactionResponse).toString(Charsets.UTF_8)
                     this.transactionRequest = MarshallerHelper(SendTransactionRequest::class.java, SendTransactionRequest::class.java).toXMLByteArray(sendTransactionRequest).toString(Charsets.UTF_8)
                     sendAttestationResponse?.soapResponse?.writeTo(this.soapResponseOutputStream())
                     sendAttestationResponse?.soapRequest?.writeTo(this.soapRequestOutputStream())
