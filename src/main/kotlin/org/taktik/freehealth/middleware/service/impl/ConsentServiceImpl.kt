@@ -58,6 +58,7 @@ class ConsentServiceImpl(val stsService: STSService) : ConsentService {
         hcpSsin: String,
         hcpFirstName: String,
         hcpLastName: String,
+        hcpQuality: String,
         patientSsin: String,
         patientFirstName: String,
         patientLastName: String,
@@ -72,7 +73,7 @@ class ConsentServiceImpl(val stsService: STSService) : ConsentService {
             this.add(CDConsentBuilderUtil.createCDConsent("1.0", CDCONSENTvalues.RETROSPECTIVE))
         }
 
-        val author = makeAuthor(hcpNihii, hcpSsin, hcpFirstName, hcpLastName)
+        val author = makeAuthor(hcpNihii, hcpSsin, hcpFirstName, hcpLastName, hcpQuality)
         val consentType =
             RequestObjectBuilderFactory.consentBuilder.createNewConsent(
                 makePatient(
@@ -116,6 +117,7 @@ class ConsentServiceImpl(val stsService: STSService) : ConsentService {
         hcpSsin: String,
         hcpFirstName: String,
         hcpLastName: String,
+        hcpQuality: String,
         patientSsin: String,
         patientFirstName: String,
         patientLastName: String
@@ -128,7 +130,7 @@ class ConsentServiceImpl(val stsService: STSService) : ConsentService {
             this.add(CDConsentBuilderUtil.createCDConsent("1.0", CDCONSENTvalues.RETROSPECTIVE))
         }
 
-        val author = makeAuthor(hcpNihii, hcpSsin, hcpFirstName, hcpLastName)
+        val author = makeAuthor(hcpNihii, hcpSsin, hcpFirstName, hcpLastName, hcpQuality)
         val consentType =
             RequestObjectBuilderFactory.consentBuilder.createSelectGetPatientConsent(
                 makePatient(
@@ -170,6 +172,7 @@ class ConsentServiceImpl(val stsService: STSService) : ConsentService {
         hcpSsin: String,
         hcpFirstName: String,
         hcpLastName: String,
+        hcpQuality: String,
         existingConsent: ConsentType,
         eidCardNumber: String?,
         isiCardNumber: String?
@@ -178,7 +181,7 @@ class ConsentServiceImpl(val stsService: STSService) : ConsentService {
             stsService.getSAMLToken(tokenId, keystoreId, passPhrase)
                 ?: throw IllegalArgumentException("Cannot obtain token for Ehealth Box operations")
 
-        val author = makeAuthor(hcpNihii, hcpSsin, hcpFirstName, hcpLastName)
+        val author = makeAuthor(hcpNihii, hcpSsin, hcpFirstName, hcpLastName, hcpQuality)
 
         existingConsent.patient.ids.removeIf { id -> IDPATIENTschemes.EID_CARDNO == id.s }
         existingConsent.patient.ids.removeIf { id -> IDPATIENTschemes.ISI_CARDNO == id.s }
@@ -239,11 +242,12 @@ class ConsentServiceImpl(val stsService: STSService) : ConsentService {
         nihii: String?,
         inss: String?,
         firstname: String?,
-        lastname: String?
+        lastname: String?,
+        hcpQuality: String
     ): AuthorWithPatientAndPersonType = AuthorWithPatientAndPersonType().apply {
         hcparties.add(
             HcPartyBuilder().idHcPartyId(nihii, "1.0").inssId(inss, "1.0").cdHcPartyCd(
-                "persphysician",
+                hcpQuality,
                 "1.0"
             ).firstname(firstname).lastname(lastname).build()
         )

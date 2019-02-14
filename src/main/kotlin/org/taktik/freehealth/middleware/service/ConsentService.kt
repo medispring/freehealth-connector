@@ -33,6 +33,7 @@ interface ConsentService {
         hcpSsin: String,
         hcpFirstName: String,
         hcpLastName: String,
+        hcpQuality: String,
         patientSsin: String,
         patientFirstName: String,
         patientLastName: String,
@@ -48,6 +49,7 @@ interface ConsentService {
         hcpSsin: String,
         hcpFirstName: String,
         hcpLastName: String,
+        hcpQuality: String,
         patientSsin: String,
         patientFirstName: String,
         patientLastName: String
@@ -61,6 +63,7 @@ interface ConsentService {
         hcpSsin: String,
         hcpFirstName: String,
         hcpLastName: String,
+        hcpQuality: String,
         existingConsent: ConsentType,
         eidCardNumber: String?,
         isiCardNumber: String?

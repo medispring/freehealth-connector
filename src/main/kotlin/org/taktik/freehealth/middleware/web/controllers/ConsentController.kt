@@ -52,7 +52,8 @@ class ConsentController(val consentService: ConsentService, val mapper: MapperFa
         @RequestParam patientFirstName: String,
         @RequestParam patientLastName: String,
         @RequestParam(required = false) eidCardNumber: String?,
-        @RequestParam(required = false) isiCardNumber: String?
+        @RequestParam(required = false) isiCardNumber: String?,
+        @RequestParam(required = false) hcpQuality: String?
     ) = consentService.registerPatientConsent(
         keystoreId = keystoreId,
         tokenId = tokenId,
@@ -61,6 +62,7 @@ class ConsentController(val consentService: ConsentService, val mapper: MapperFa
         hcpSsin = hcpSsin,
         hcpFirstName = hcpFirstName,
         hcpLastName = hcpLastName,
+        hcpQuality = hcpQuality ?: "persphysician",
         patientSsin = patientSsin,
         patientFirstName = patientFirstName,
         patientLastName = patientLastName,
@@ -79,7 +81,8 @@ class ConsentController(val consentService: ConsentService, val mapper: MapperFa
         @RequestParam hcpLastName: String,
         @PathVariable patientSsin: String,
         @RequestParam patientFirstName: String,
-        @RequestParam patientLastName: String
+        @RequestParam patientLastName: String,
+        @RequestParam(required = false) hcpQuality: String?
     ) = consentService.getPatientConsent(
         keystoreId = keystoreId,
         tokenId = tokenId,
@@ -90,7 +93,8 @@ class ConsentController(val consentService: ConsentService, val mapper: MapperFa
         hcpLastName = hcpLastName,
         patientSsin = patientSsin,
         patientFirstName = patientFirstName,
-        patientLastName = patientLastName
+        patientLastName = patientLastName,
+        hcpQuality = hcpQuality ?: "persphysician"
     ).let { mapper.map(it, ConsentMessageDto::class.java) }
 
     @PostMapping("/revoke/{patientSsin}")
@@ -104,7 +108,8 @@ class ConsentController(val consentService: ConsentService, val mapper: MapperFa
         @RequestParam hcpLastName: String,
         @RequestBody existingConsent: ConsentTypeDto,
         @RequestParam(required = false) eidCardNumber: String?,
-        @RequestParam(required = false) isiCardNumber: String?
+        @RequestParam(required = false) isiCardNumber: String?,
+        @RequestParam(required = false) hcpQuality: String?
     ) = consentService.revokePatientConsent(
         keystoreId = keystoreId,
         tokenId = tokenId,
@@ -115,6 +120,7 @@ class ConsentController(val consentService: ConsentService, val mapper: MapperFa
         hcpLastName = hcpLastName,
         existingConsent = mapper.map(existingConsent, ConsentType::class.java),
         eidCardNumber = eidCardNumber,
-        isiCardNumber = isiCardNumber
+        isiCardNumber = isiCardNumber,
+        hcpQuality = hcpQuality ?: "persphysician"
     ).let { mapper.map(it, ConsentMessageDto::class.java) }
 }
