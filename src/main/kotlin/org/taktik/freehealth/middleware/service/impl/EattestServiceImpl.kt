@@ -716,7 +716,7 @@ class EattestServiceImpl(private val stsService: STSService) : EattestService {
                                     }
                             }
                         }
-                        /*if(hcpQuality == "guardpost") {
+                        if(hcpQuality == "guardpost") {
                             // nihii11 is required with guardpost
                             careProvider = CareProviderType().apply {
                                 nihii =
@@ -749,7 +749,7 @@ class EattestServiceImpl(private val stsService: STSService) : EattestService {
                                         }
                                 }
                             }
-                        } */
+                        }
 
                     }
                 }
