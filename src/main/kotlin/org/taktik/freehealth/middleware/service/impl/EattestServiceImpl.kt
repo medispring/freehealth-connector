@@ -163,10 +163,12 @@ class EattestServiceImpl(private val stsService: STSService) : EattestService {
         hcpFirstName: String,
         hcpLastName: String,
         hcpCbe: String,
+        hcpQuality: String?,
         traineeSupervisorSsin: String?,
         traineeSupervisorNihii: String?,
         traineeSupervisorFirstName: String?,
         traineeSupervisorLastName: String?,
+        traineeSupervisorQuality: String?,
         passPhrase: String,
         patientSsin: String,
         patientFirstName:String,
@@ -703,19 +705,52 @@ class EattestServiceImpl(private val stsService: STSService) : EattestService {
                         careProvider = CareProviderType().apply {
                             nihii =
                                 NihiiType().apply {
-                                    quality = "doctor"; value =
-                                    ValueRefString().apply { value = hcpNihii }
+                                    quality = hcpQuality; value =
+                                    ValueRefString().apply { value = "67809433000" }
                                 }
-                            physicalPerson = IdType().apply {
-                                name = ValueRefString().apply { value = "$hcpFirstName $hcpLastName" }
-                                ssin = ValueRefString().apply { value = hcpSsin }
+                            organization = IdType().apply {
+                                nihii =
+                                    NihiiType().apply {
+                                        quality = hcpQuality; value =
+                                        ValueRefString().apply { value = "67809433000" }
+                                    }
+                            }
+                        }
+                        /*if(hcpQuality == "guardpost") {
+                            // nihii11 is required with guardpost
+                            careProvider = CareProviderType().apply {
+                                nihii =
+                                    NihiiType().apply {
+                                        quality = hcpQuality; value =
+                                        ValueRefString().apply { value = hcpNihii.padEnd(11, '0') }
+                                    }
+                                organization = IdType().apply {
+                                    nihii =
+                                        NihiiType().apply {
+                                            quality = hcpQuality; value =
+                                            ValueRefString().apply { value = hcpNihii.padEnd(11, '0') }
+                                        }
+                                }
+                            }
+                        } else {
+                            careProvider = CareProviderType().apply {
                                 nihii =
                                     NihiiType().apply {
                                         quality = "doctor"; value =
                                         ValueRefString().apply { value = hcpNihii }
                                     }
+                                physicalPerson = IdType().apply {
+                                    name = ValueRefString().apply { value = "$hcpFirstName $hcpLastName" }
+                                    ssin = ValueRefString().apply { value = hcpSsin }
+                                    nihii =
+                                        NihiiType().apply {
+                                            quality = "doctor"; value =
+                                            ValueRefString().apply { value = hcpNihii }
+                                        }
+                                }
                             }
-                        }
+                        } */
+
                     }
                 }
                 this.id = IdGeneratorFactory.getIdGenerator("xsid").generateId()
