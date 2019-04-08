@@ -59,12 +59,24 @@ class BelgianInsuranceInvoicingFormatWriter(private val writer: Writer) {
         return null
     }
 
-    fun getDestCode(affCode: String, invoiceSender: InvoiceSender): String {
+    fun getDestCode(affCode: String, invoiceSender: InvoiceSender, returnAffCodeIfMH: Boolean = false): String {
         val firstCode = affCode.substring(0, 3).replace("[^0-9]".toRegex(), "")
-        if (affCode.startsWith("3")) {
-            return if (Arrays.asList("305", "315", "317", "319", "323", "325").contains(firstCode)) if (invoiceSender.isSpecialist) "317" else "319" else firstCode
-        } else if (affCode.startsWith("4")) {
-            return "400"
+        if(invoiceSender.isMedicalHouse && returnAffCodeIfMH){
+            return firstCode
+        }
+        else {
+            if (affCode.startsWith("3")) {
+                return if (invoiceSender.isMedicalHouse)
+                    if (Arrays.asList("304", "305", "309", "311", "315", "317", "319", "322", "323", "325").contains(firstCode)) "300"
+                    else "306"
+                else
+                    if (Arrays.asList("305", "315", "317", "319", "323", "325").contains(firstCode))
+                        if (invoiceSender.isSpecialist) "317"
+                        else "319"
+                    else firstCode
+            } else if (affCode.startsWith("4")) {
+                return "400"
+            }
         }
         return firstCode
     }
@@ -214,7 +226,8 @@ class BelgianInsuranceInvoicingFormatWriter(private val writer: Writer) {
                         sendingNumber: Long,
                         invoicingYear: Int,
                         invoicingMonth: Int,
-                        batchRef: String): Int {
+                        batchRef: String,
+                        invoiceContent: Int? = 40): Int {
 
         val ws = WriterSession(writer, Record10Description)
 
@@ -225,7 +238,7 @@ class BelgianInsuranceInvoicingFormatWriter(private val writer: Writer) {
         ws.write("2", recordNumber)
         ws.write("4", fileVersion)
         ws.write("7", sendingNumber)
-        ws.write("13", 40)
+        ws.write("13", invoiceContent)
         ws.write("14", sender.nihii)
         ws.write("22", invoicingYear)
         ws.write("23", invoicingMonth)
@@ -254,7 +267,9 @@ class BelgianInsuranceInvoicingFormatWriter(private val writer: Writer) {
                           relatedBatchSendNumber: Long?,
                           relatedBatchYearMonth: Long?,
                           relatedInvoiceIoCode: String?,
-                          relatedInvoiceNumber: Long?
+                          relatedInvoiceNumber: Long?,
+                          magneticInvoice: Boolean? = false,
+                          startOfCoveragePeriod: Long?
         ): Int {
 
         val ws = WriterSession(writer, Record20Description)
@@ -294,6 +309,7 @@ class BelgianInsuranceInvoicingFormatWriter(private val writer: Writer) {
         val relatedDestCode = if (relatedInvoiceIoCode != null) getDestCode(relatedInvoiceIoCode, sender) else null
 
         ws.write("18", destCode)
+        ws.write("20", startOfCoveragePeriod)
         ws.write("24", invoiceNumber)
         ws.write("27", ct1 * 1000 + ct2)
         ws.write("29", relatedInvoiceNumber)
@@ -302,6 +318,7 @@ class BelgianInsuranceInvoicingFormatWriter(private val writer: Writer) {
         ws.write("34", relatedBatchSendNumber)
         ws.write("37", relatedDestCode)
         ws.write("41", relatedBatchYearMonth)
+        ws.write("47", (if (magneticInvoice!!) formattedCreationDate else "00000000"))
 
         ws.writeFieldsWithCheckSum()
 
@@ -315,7 +332,8 @@ class BelgianInsuranceInvoicingFormatWriter(private val writer: Writer) {
                            invoicingMonth: Int?,
                            patient: Patient,
                            insuranceCode: String,
-                           icd: InvoiceItem): Int {
+                           icd: InvoiceItem,
+                           magneticInvoice: Boolean? = false): Int {
         val ws = WriterSession(writer, Record50Description)
 
         val creationDate = LocalDateTime.now()
@@ -338,23 +356,32 @@ class BelgianInsuranceInvoicingFormatWriter(private val writer: Writer) {
         noSIS = noSIS!!.replace("[^0-9]".toRegex(), "")
 
         ws.write("2", recordNumber)
-        ws.write("3", (icd.percentNorm?: InvoicingPercentNorm.None).code)
+        ws.write("3", (icd.percentNorm ?: InvoicingPercentNorm.None).code)
         ws.write("4", icd.codeNomenclature)
         ws.write("5", FuzzyValues.getLocalDateTime(icd.dateCode!!)!!.format(dtf))
-        ws.write("6a", FuzzyValues.getLocalDateTime(icd.dateCode!!)!!.format(dtf))
-        ws.write("7", insuranceCode)
+        ws.write("6a", if(icd.endDateCode != null) FuzzyValues.getLocalDateTime(icd.endDateCode!!)!!.format(dtf) else FuzzyValues.getLocalDateTime(icd.dateCode!!)!!.format(dtf))
+
+        var affCode = insuranceCode
+
+        if (affCode.startsWith("2") || affCode.startsWith("5") || (magneticInvoice!! && affCode.startsWith("4"))) {
+            affCode = "000"
+        }
+
+        ws.write("7", affCode)
         ws.write("8a", noSIS)
         ws.write("9", if (patient.gender == null || patient.gender == Gender.male) 1 else 2)
         ws.write("12", (icd.timeOfDay?: InvoicingTimeOfDay.Other).code)
         ws.write("13",990)
-        ws.write("15", icd.doctorIdentificationNumber)
-        ws.write("16", if (icd.gnotionNihii == null || icd.gnotionNihii?.let { it.isEmpty() } == true) 1 else 4)
+        if (sender.isMedicalHouse) ws.write("14", sender.nihii)
+        if (!sender.isMedicalHouse) ws.write("15", icd.doctorIdentificationNumber)
+        //ws.write("16", if (sender.isMedicalHouse) 0 else if (icd.gnotionNihii == null || icd.gnotionNihii?.let { it.isEmpty() } == true) 1 else 4)
+        ws.write("16", if(sender.isMedicalHouse){0}else if(icd.gnotionNihii !== null || icd.gnotionNihii?.let { it?.isEmpty() } === false){4} else if (icd.internshipNihii !== null || icd.internshipNihii?.let { it?.isEmpty() } === false){5} else {1})
         ws.write("17", icd.relatedCode)
         ws.write("19",(if (icd.reimbursedAmount >= 0) "+" else "-") + nf11.format(Math.abs(icd.reimbursedAmount)))
         ws.write("22",(if (icd.units >= 0) "+" else "-") + nf4.format(Math.abs(icd.units)))
-        ws.write("23", (icd.derogationMaxNumber?: InvoicingDerogationMaxNumberCode.Other).code)
+        ws.write("23", (icd.derogationMaxNumber ?: InvoicingDerogationMaxNumberCode.Other).code)
         ws.write("24", icd.prescriberNihii)
-        ws.write("26", (icd.percentNorm?: InvoicingPercentNorm.None).code)
+        ws.write("26", (icd.prescriberNorm ?: InvoicingPrescriberCode.None).code)
         ws.write("27",(if (icd.patientFee >= 0) "+" else "-") + nf9.format(Math.abs(icd.patientFee)))
         ws.write("28", icd.invoiceRef)
         ws.write("30",(if (icd.doctorSupplement >= 0) "+" else "-") + nf9.format(Math.abs(icd.doctorSupplement)))
@@ -362,7 +389,8 @@ class BelgianInsuranceInvoicingFormatWriter(private val writer: Writer) {
         ws.write("33", icd.personalInterventionCoveredByThirdPartyCode?. let { if (it >= 0) it else 0 } ?: 0)//MAF Zone 33 todo //Mettre 1 si a charge du medecin
         ws.write("34", (icd.sideCode?: InvoicingSideCode.None).code)
         ws.write("35", sender.conventionCode)
-        ws.write("49",icd.gnotionNihii)
+        //ws.write("49",icd.gnotionNihii)
+        ws.write("49", if(icd.gnotionNihii !== null || icd.gnotionNihii.let{it?.isEmpty() === false}){icd.gnotionNihii}else if(icd.internshipNihii !== null || icd.internshipNihii.let{it?.isEmpty() === false}){icd.internshipNihii} else null)
 
         ws.writeFieldsWithCheckSum()
         return recordNumber+1
@@ -458,7 +486,8 @@ class BelgianInsuranceInvoicingFormatWriter(private val writer: Writer) {
                           codesNomenclature: List<Long>,
                           amount: Long,
                           fee: Long,
-                          sup: Long): Int {
+                          sup: Long,
+                          magneticInvoice: Boolean): Int {
         val ws = WriterSession(writer, Record80Description)
 
         val creationDate = LocalDateTime.now()
@@ -473,7 +502,14 @@ class BelgianInsuranceInvoicingFormatWriter(private val writer: Writer) {
 
 
         ws.write("2", recordNumber)
-        ws.write("7", insuranceCode)
+
+        var affCode = insuranceCode
+
+        if (affCode.startsWith("2") || affCode.startsWith("5")) {
+            affCode = "000"
+        }
+
+        ws.write("7", affCode)
         ws.write("8a", noSIS)
         ws.write("9", if (patient.gender == Gender.male) 1 else 2)
         ws.write("10", 3)
@@ -485,7 +521,7 @@ class BelgianInsuranceInvoicingFormatWriter(private val writer: Writer) {
 
         ws.write("18", destCode)
         ws.write("19", (if (amount >= 0) "+" else "-") + nf11.format(Math.abs(amount)))
-        ws.write("20", formattedCreationDate)
+        ws.write("20", (if(magneticInvoice) "00000000" else formattedCreationDate))
         ws.write("24", invoiceNumber)
         ws.write("27", (if (fee >= 0) "+" else "-") + nf9.format(Math.abs(fee)))
         ws.write("28", invoiceRef)
